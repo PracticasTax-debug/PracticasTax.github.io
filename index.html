@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análisis Interactivo: Convenio de Doble Imposición España-Rusia</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals with Subtle Blue Accent -->
+    <!-- Application Structure Plan: Se ha rediseñado la SPA para usar un formato de pestañas que mejora la organización y la experiencia de usuario. La navegación principal ya no es un menú de desplazamiento, sino un conjunto de botones de pestañas en la parte superior del contenido. Cada pestaña ("Impacto Directo", "Calculadora", "Riesgos" y "Recomendaciones") contiene una sección completa de la información del informe. Dentro de "Recomendaciones", se han añadido subpestañas para segmentar las recomendaciones por grupo de interés: "Personas Físicas", "Empresas", y ahora "Ciudadanos Rusos", lo que permite una navegación aún más granular y relevante para el usuario. -->
+    <!-- Visualization & Content Choices: 1. Comparativa de Tasas (Informe Tabla 1) -> Objetivo: Comparar -> Visualización: Gráfico de barras dinámico (Chart.js) -> Interacción: El usuario selecciona el tipo de renta y el gráfico se actualiza. Justificación: Mucho más impactante y fácil de comparar que una tabla estática. 2. Cálculo del Crédito Fiscal (Informe Tabla 2) -> Objetivo: Demostrar un proceso y su consecuencia -> Visualización: Calculadora simple (HTML/JS) + Gráfico de barras apiladas (Chart.js) -> Interacción: El usuario introduce un importe y ve cómo se desglosa el coste fiscal. Justificación: Transforma un ejemplo numérico en una herramienta interactiva que revela el problema central. 3. Riesgos y Recomendaciones -> Objetivo: Informar/Organizar -> Presentación: Tarjetas y Listas (HTML/Tailwind) -> Interacción: Clics para cambiar de pestaña. Justificación: Organiza la información textual de forma clara y accesible. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fdfcfb;
+            color: #333;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .tab-nav-item.active {
+            border-color: #3b82f6;
+            color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        .card {
+            background-color: #ffffff;
+            border: 1px solid #e5e7eb;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <main class="container mx-auto px-6 py-12">
+        <section class="text-center mb-10">
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Un "Limbo Fiscal" para Contribuyentes Rusos y Españoles</h2>
+            <p class="max-w-3xl mx-auto text-lg text-gray-600">
+                Debido a la suspensión unilateral por parte de Rusia de las cláusulas clave del Convenio de Doble Imposición, los contribuyentes situados en España se enfrentan a una mayor carga fiscal y a una notable incertidumbre jurídica. Esta aplicación explora visualmente las consecuencias directas de esta situación.
+            </p>
+        </section>
+
+        <div class="flex justify-center border-b border-gray-200 mb-8">
+            <button id="tab-impacto" class="tab-nav-item active py-2 px-6 text-lg font-medium border-b-2">Impacto Directo</button>
+            <button id="tab-calculadora" class="tab-nav-item py-2 px-6 text-lg font-medium border-b-2">Calculadora</button>
+            <button id="tab-riesgos" class="tab-nav-item py-2 px-6 text-lg font-medium border-b-2">Riesgos Clave</button>
+            <button id="tab-recomendaciones" class="tab-nav-item py-2 px-6 text-lg font-medium border-b-2">Recomendaciones</button>
+        </div>
+
+        <div id="content-impacto" class="tab-content">
+            <div class="text-center mb-12">
+                <h3 class="text-2xl md:text-3xl font-bold text-gray-800">Aumento de las Retenciones en Origen</h3>
+                <p class="mt-2 text-gray-600">Selecciona un tipo de renta para comparar la retención máxima en Rusia antes y después de la suspensión del convenio.</p>
+            </div>
+
+            <div class="max-w-xl mx-auto mb-8">
+                <select id="incomeTypeSelector" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="dividendos" selected>Dividendos</option>
+                    <option value="intereses">Intereses</option>
+                    <option value="royalties">Cánones (Royalties)</option>
+                    <option value="plusvaliasInmobiliarias">Plusvalías Inmobiliarias</option>
+                </select>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="taxRateChart"></canvas>
+            </div>
+             <div id="chart-context-text" class="text-center mt-4 text-gray-600 max-w-2xl mx-auto"></div>
+        </div>
+
+        <div id="content-calculadora" class="tab-content hidden bg-blue-50/50 rounded-2xl py-12 px-4">
+            <div class="text-center mb-12">
+                <h3 class="text-2xl md:text-3xl font-bold text-gray-800">Calculadora del "Impuesto Residual"</h3>
+                <p class="mt-2 text-gray-600 max-w-3xl mx-auto">
+                    El principal problema es que la mayor retención en Rusia puede superar el impuesto que pagarías en España por esa misma renta. La diferencia se convierte en un coste no recuperable. Introduce una renta bruta de origen ruso (ej. intereses) para ver el efecto.
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8 items-center">
+                <div class="card p-8 rounded-xl shadow-lg">
+                    <label for="grossIncome" class="block text-sm font-medium text-gray-700 mb-2">Renta Bruta en Origen (EUR)</label>
+                    <input type="number" id="grossIncome" value="1000" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg">
+                    
+                    <div class="mt-8 space-y-4">
+                        <div>
+                            <p class="text-sm text-gray-500">Impuesto Retenido en Rusia (30%)</p>
+                            <p id="taxRussia" class="text-2xl font-bold text-red-600">300.00 €</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Crédito Fiscal Máximo en España (Límite 19%)</p>
+                            <p id="taxSpainCredit" class="text-2xl font-bold text-green-600">190.00 €</p>
+                        </div>
+                        <div class="border-t pt-4">
+                            <p class="text-sm font-semibold text-gray-700">COSTE FISCAL NO DEDUCIBLE</p>
+                            <p id="residualTax" class="text-3xl font-bold text-gray-800">110.00 €</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-container h-[400px] md:h-[450px]">
+                    <canvas id="residualTaxChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div id="content-riesgos" class="tab-content hidden">
+            <div class="text-center mb-12">
+                <h3 class="text-2xl md:text-3xl font-bold text-gray-800">Desafíos y Riesgos Clave</h3>
+                <p class="mt-2 text-gray-600">Más allá del aumento de impuestos, la situación actual presenta múltiples desafíos para los contribuyentes.</p>
+            </div>
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="card p-6 rounded-lg">
+                    <div class="flex items-center justify-center h-12 w-12 rounded-full bg-amber-100 text-amber-600 mb-4">
+                        <span class="text-2xl">⚖️</span>
+                    </div>
+                    <h4 class="font-bold text-lg mb-2">Incertidumbre Jurídica</h4>
+                    <p class="text-gray-600 text-sm">Falta un comunicado oficial de la Agencia Tributaria Española, lo que obliga a los contribuyentes a actuar basándose en interpretaciones y asumiendo riesgos.</p>
+                </div>
+                <div class="card p-6 rounded-lg">
+                    <div class="flex items-center justify-center h-12 w-12 rounded-full bg-rose-100 text-rose-600 mb-4">
+                        <span class="text-2xl">📄</span>
+                    </div>
+                    <h4 class="font-bold text-lg mb-2">Dificultades Administrativas</h4>
+                    <p class="text-gray-600 text-sm">Las sanciones financieras complican el pago de impuestos en Rusia y la obtención de los certificados necesarios para acreditar dichos pagos en España y aplicar la deducción.</p>
+                </div>
+                 <div class="card p-6 rounded-lg">
+                    <div class="flex items-center justify-center h-12 w-12 rounded-full bg-sky-100 text-sky-600 mb-4">
+                        <span class="text-2xl">📈</span>
+                    </div>
+                    <h4 class="font-bold text-lg mb-2">Riesgo Estratégico</h4>
+                    <p class="text-gray-600 text-sm">El entorno de negocio en Rusia es de alto riesgo. La suspensión del convenio es un factor más a considerar en la evaluación integral de las operaciones en el país.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="content-recomendaciones" class="tab-content hidden">
+            <div class="text-center mb-12">
+                <h3 class="text-2xl md:text-3xl font-bold text-gray-800">Recomendaciones Estratégicas</h3>
+                 <p class="mt-2 text-gray-600">Acciones clave a considerar para diferentes grupos afectados por la suspensión del convenio.</p>
+            </div>
+            <div>
+                <div class="flex justify-center border-b border-gray-200 mb-8">
+                    <button id="tab-sub-personas" class="tab-button active py-2 px-6 text-lg font-medium border-b-2">Personas Físicas</button>
+                    <button id="tab-sub-empresas" class="tab-button py-2 px-6 text-lg font-medium border-b-2">Empresas</button>
+                    <button id="tab-sub-ciudadanos" class="tab-button py-2 px-6 text-lg font-medium border-b-2">Ciudadanos Rusos</button>
+                </div>
+                <div id="content-sub-personas" class="tab-content">
+                    <ul class="space-y-4 max-w-2xl mx-auto list-disc list-inside text-gray-700">
+                        <li><b>Evaluar el impacto fiscal:</b> Analizar cómo la nueva fiscalidad afecta a los ingresos personales de origen ruso (alquileres, dividendos, etc.).</li>
+                        <li><b>Documentación exhaustiva:</b> Recopilar y guardar toda la documentación que acredite el pago de impuestos en Rusia. Es un requisito indispensable para solicitar la deducción en el IRPF.</li>
+                        <li><b>Asesoramiento especializado:</b> En casos de doble residencia o vínculos económicos significativos, es crucial consultar con asesores fiscales para mitigar riesgos y optimizar la declaración.</li>
+                    </ul>
+                </div>
+                <div id="content-sub-empresas" class="tab-content hidden">
+                    <ul class="space-y-4 max-w-2xl mx-auto list-disc list-inside text-gray-700">
+                        <li><b>Análisis de rentabilidad:</b> Las empresas con filiales o establecimientos permanentes deben recalcular el impacto en sus flujos de caja y rentabilidad.</li>
+                        <li><b>Revisar estructuras operativas:</b> Evaluar la estructura actual y las implicaciones de las mayores retenciones en la repatriación de beneficios y otros pagos.</li>
+                        <li><b>Evaluación integral del riesgo:</b> La planificación fiscal debe ir acompañada de una evaluación completa de los crecientes riesgos operacionales, legales y reputacionales de operar en Rusia.</li>
+                    </ul>
+                </div>
+                <div id="content-sub-ciudadanos" class="tab-content hidden">
+                    <ul class="space-y-4 max-w-2xl mx-auto list-disc list-inside text-gray-700">
+                        <li><b>Doble Imposición:</b> Como residentes fiscales en España, están sujetos al impuesto sobre la renta mundial. La suspensión del convenio dificulta la deducción de los impuestos ya pagados en Rusia.</li>
+                        <li><b>Importancia de la Residencia Fiscal:</b> Es crucial determinar su estatus de residencia fiscal para cumplir correctamente con las obligaciones en España. Un error podría llevar a una doble tributación sin posibilidad de compensación.</li>
+                        <li><b>Impacto en la Renta:</b> Los ingresos procedentes de salarios, alquileres o rendimientos de capital en Rusia podrían verse afectados por una mayor carga impositiva global al no aplicarse los beneficios del convenio.</li>
+                        <li><b>Obligaciones de Declaración:</b> Deben seguir declarando sus rentas rusas en España, pero el mecanismo para evitar la doble imposición se basa ahora en la ley interna española, que puede ser menos favorable.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-gray-800 text-white mt-20">
+        <div class="container mx-auto px-6 py-8 text-center">
+            <p>Esta es una visualización interactiva basada en el "Informe de Situación: Impacto y Funcionamiento del Convenio de Doble Imposición entre España y Rusia".</p>
+            <p class="text-sm text-gray-400 mt-2">La información presentada es para fines ilustrativos y no constituye asesoramiento fiscal.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            
+            const tabButtons = document.querySelectorAll('.tab-nav-item');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    tabContents.forEach(content => content.classList.add('hidden'));
+                    document.getElementById(`content-${button.id.replace('tab-', '')}`).classList.remove('hidden');
+                });
+            });
+
+            const taxData = {
+                dividendos: { before: 10, after: 15, context: "La retención general para dividendos sube del 10% (o 5% en ciertos casos) al 15% según la ley interna rusa." },
+                intereses: { before: 5, after: 30, context: "La retención para intereses salta drásticamente de un máximo del 5% al 30% general, impactando fuertemente los rendimientos financieros." },
+                royalties: { before: 0, after: 30, context: "Los cánones o royalties, que estaban exentos de retención bajo el convenio, ahora se enfrentan a una retención del 30%." },
+                plusvaliasInmobiliarias: { before: 30, after: 30, context: "Las plusvalías por venta de inmuebles ya tributaban en origen. La suspensión confirma una retención del 30% si la propiedad se ha mantenido por un corto periodo." }
+            };
+
+            const ctxTaxRate = document.getElementById('taxRateChart').getContext('2d');
+            const taxRateChart = new Chart(ctxTaxRate, {
+                type: 'bar',
+                data: {
+                    labels: ['Antes de la Suspensión', 'Tras la Suspensión'],
+                    datasets: [{
+                        label: 'Retención Máxima en Rusia (%)',
+                        data: [taxData.dividendos.before, taxData.dividendos.after],
+                        backgroundColor: ['rgba(59, 130, 246, 0.6)', 'rgba(239, 68, 68, 0.6)'],
+                        borderColor: ['rgba(59, 130, 246, 1)', 'rgba(239, 68, 68, 1)'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Tasa de Retención (%)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.raw}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const incomeTypeSelector = document.getElementById('incomeTypeSelector');
+            const chartContextText = document.getElementById('chart-context-text');
+
+            function updateTaxRateChart() {
+                const selectedType = incomeTypeSelector.value;
+                taxRateChart.data.datasets[0].data = [taxData[selectedType].before, taxData[selectedType].after];
+                chartContextText.textContent = taxData[selectedType].context;
+                taxRateChart.update();
+            }
+            
+            incomeTypeSelector.addEventListener('change', updateTaxRateChart);
+            updateTaxRateChart();
+
+            const grossIncomeInput = document.getElementById('grossIncome');
+            const taxRussiaEl = document.getElementById('taxRussia');
+            const taxSpainCreditEl = document.getElementById('taxSpainCredit');
+            const residualTaxEl = document.getElementById('residualTax');
+            
+            const ctxResidual = document.getElementById('residualTaxChart').getContext('2d');
+            const residualTaxChart = new Chart(ctxResidual, {
+                type: 'bar',
+                data: {
+                    labels: ['Desglose de la Renta Bruta'],
+                    datasets: [
+                        {
+                            label: 'Crédito Fiscal en España',
+                            data: [190],
+                            backgroundColor: 'rgba(22, 163, 74, 0.7)',
+                            borderColor: 'rgba(22, 163, 74, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Impuesto Residual (No Deducible)',
+                            data: [110],
+                            backgroundColor: 'rgba(220, 38, 38, 0.7)',
+                            borderColor: 'rgba(220, 38, 38, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: 'Importe (EUR)'
+                            }
+                        },
+                        y: {
+                            stacked: true
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                             callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.raw.toFixed(2)} €`;
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Visualización del Coste Fiscal'
+                        }
+                    }
+                }
+            });
+
+            function calculateResidualTax() {
+                const grossIncome = parseFloat(grossIncomeInput.value) || 0;
+                const taxRussia = grossIncome * 0.30;
+                const taxSpainPotential = grossIncome * 0.19;
+                const creditSpain = Math.min(taxRussia, taxSpainPotential);
+                const residualTax = taxRussia - creditSpain;
+
+                taxRussiaEl.textContent = `${taxRussia.toFixed(2)} €`;
+                taxSpainCreditEl.textContent = `${creditSpain.toFixed(2)} €`;
+                residualTaxEl.textContent = `${residualTax.toFixed(2)} €`;
+
+                residualTaxChart.data.datasets[0].data[0] = creditSpain;
+                residualTaxChart.data.datasets[1].data[0] = residualTax;
+                residualTaxChart.update();
+            }
+
+            grossIncomeInput.addEventListener('input', calculateResidualTax);
+            calculateResidualTax();
+
+            const subTabButtons = document.querySelectorAll('#content-recomendaciones .tab-button');
+            const subTabContents = document.querySelectorAll('#content-recomendaciones .tab-content');
+
+            subTabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    subTabButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    subTabContents.forEach(content => content.classList.add('hidden'));
+                    document.getElementById(`content-${button.id.replace('tab-sub-', 'sub-')}`).classList.remove('hidden');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
